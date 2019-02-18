@@ -1,9 +1,7 @@
 #include "filesystem.h"
 #include <stdlib.h>
 
-#include "fuse.h"
-
-static struct fuse_operations operations={
+static struct fuse_operations operations = {
     .init=filesystem_init,
     .getattr=filesystem_getattr,
     .mkdir=filesystem_mkdir,

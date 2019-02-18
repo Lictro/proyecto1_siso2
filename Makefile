@@ -1,5 +1,10 @@
-CFLAGS = -g -Wall -DFUSE_USE_VERSION=30 `pkg-config fuse --cflags`
-LINKFLAGS = -Wall `pkg-config fuse --libs`
+
+OSXFUSE_ROOT = /usr/local
+INCLUDE_DIR = $(OSXFUSE_ROOT)/include/osxfuse/fuse
+LIBRARY_DIR = $(OSXFUSE_ROOT)/lib
+
+CFLAGS = -g -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=26 -D_DARWIN_USE_64_BIT_INODE `pkg-config fuse --cflags` -I$(INCLUDE_DIR) -L$(LIBRARY_DIR)
+LINKFLAGS = -Wall -losxfuse `pkg-config fuse --libs`
 
 all: bin/filesystem
 

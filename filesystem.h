@@ -1,7 +1,7 @@
 #ifndef filesystem_h
 #define filesystem_h
-
-#include "fuse.h"
+#define FUSE_USE_VERSION 26
+#include "osxfuse/fuse.h"
 #include "device.h"
 #include <time.h>
 #include "math.h"
@@ -9,13 +9,6 @@
 #include <string.h>
 #include <errno.h>
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define ENTRY_SIZE sizeof(struct Entry_Directory)
-#define ENTRY_SIZE_P 256
 
 struct Entry_Directory
 {
@@ -38,6 +31,13 @@ struct Metadata
     int count_entries;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define ENTRY_SIZE sizeof(struct Entry_Directory)
+#define ENTRY_SIZE_P 256
+
 void create_partition(char* path, int size);
 void load_metadata();
 void load_bitmap();
@@ -56,6 +56,7 @@ void write_dir_entry(struct Entry_Directory entry);
 
 void* filesystem_init(struct fuse_conn_info *conn);
 struct Entry_Directory *filesystem_get_entry(const char *path);
+void filesystem_getsize(int index_block, int *size, int *blocks);
 int filesystem_getattr(const char *path, struct stat *statbuf);
 int filesystem_mkdir(const char *path, mode_t mode);
 int filesystem_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi);

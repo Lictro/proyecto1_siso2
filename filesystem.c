@@ -196,7 +196,7 @@ void unmountm(){
 }
 
 void create_file(char* filename){
-    if(IS_OPEN){
+    if(1){
         struct Entry_Directory file_entry = create_dir_entry(filename,0);
         /*cout<<file_entry.path<<endl;        
         cout<<file_entry.index_block<<endl;
@@ -212,7 +212,7 @@ void create_file(char* filename){
 }
 
 void create_dir(char* filename){
-    if(IS_OPEN){
+    if(1){
         struct Entry_Directory file_entry = create_dir_entry(filename,1);
         /*cout<<file_entry.path<<endl;        
         cout<<file_entry.index_block<<endl;
@@ -251,7 +251,6 @@ struct Entry_Directory create_dir_entry(char* filename,int is_dir){
     char src[50], dest[50];
     strcpy(src, CURR_DIR);
     strcat(src, filename);
-    strcat(src, "/");
     strcpy(entry.path, src);
     //printf("Final name |%s|\n", entry.path);
     if(is_dir){
@@ -273,21 +272,61 @@ void write_dir_entry(struct Entry_Directory entry){
     METADATA.count_entries++;
 }
 
+void init_file(){
+    create_dir("user1");
+    create_dir("user2");
+    create_dir("user3");
+    create_file("test1.txt");
+    create_file("test2.txt");
+    create_file("test3.txt");
+    save_entrys();
+    save_bitmap();
+    save_metadata();
+    fldisk();
+}
+
 void* filesystem_init(struct fuse_conn_info *conn) 
 {
+    printf("INICIANDO FILESYSTEM\n");
     load_metadata();
     load_bitmap();
     load_entrys();
+
     strcpy(CURR_DIR, "/");
+
+    init_file();
+    list_dir();
     return NULL;
 }
 
 struct Entry_Directory *filesystem_get_entry(const char *path){
-    printf("D Buscando path%s\n",path);
+    printf("D Buscando path %s\n",path);
     int i;
+    struct Entry_Directory copy;
     for (i = 0; i < METADATA.count_entries; ++i)
     {
-        
+        if(strcmp(path,ENTRIES[i].path)){
+            
+            return &ENTRIES[i];
+        }
+    }
+    return NULL;
+}
+//MODIFICAR 
+void filesystem_getsize(int index_block, int *size, int *blocks){
+    *blocks=1;
+    *size=4096;
+    char buffer[4096];
+    read_block_disk(buffer,index_block);
+    int i;
+    int b;
+    for(i = 0; i < 1024; i++){
+        memcpy(&b, &buffer[i*4], 4);
+        if(b == 0){
+            break;
+        }
+        blocks++;
+        size = size + 4096;
     }
 }
 
@@ -305,18 +344,74 @@ int filesystem_getattr(const char *path, struct stat *statbuf){
         statbuf->st_blksize=BLOCK_SIZE;
         statbuf->st_blocks=1;
     }else{
+        struct Entry_Directory* entry = filesystem_get_entry(path);
+        
+        if(entry==NULL)
+        {
+            return -ENOENT;
+        }
+        printf("tipo %c\n", entry->is_dir);
+        if (entry->is_dir == 'D') {
+            printf("        dir entry path %s\n", entry->path);
+            statbuf->st_mode=S_IFDIR|0777;
+            statbuf->st_uid=0;
+            statbuf->st_gid=0;
+            statbuf->st_nlink=1;
+            statbuf->st_ino=0;
+            statbuf->st_size=0;
+            statbuf->st_blksize=BLOCK_SIZE;
+            statbuf->st_blocks=1;
+        }else{
+            printf("        file entry path %s\n", entry->path);
+            int size, blocks;
+            filesystem_getsize(entry->index_block, &size, &blocks);
 
+            statbuf->st_mode=S_IFREG|0777;
+            statbuf->st_nlink=1;
+            statbuf->st_ino=0;
+            statbuf->st_uid=0;
+            statbuf->st_gid=0;
+            statbuf->st_size=size; 
+            statbuf->st_blksize=BLOCK_SIZE;
+            statbuf->st_blocks=blocks;
+        }
     }
     return 0;
 }
 int filesystem_mkdir(const char *path, mode_t mode){
     printf("D filesystem_mkdir%s\n",path);
-
+    create_dir((char*)path);
+    save_entrys();
+    save_bitmap();
+    save_metadata();
+    fldisk();
     return -ENOENT;
 }
 int filesystem_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi){
     printf("D filesystem_readdir%s\n",path);
-    return -ENOENT;
+    
+    struct Entry_Directory directory[100];
+    if(METADATA.count_entries > 0){
+        if(strcmp(path, "/")==0){
+            int i;
+            for(i = 0; i <  METADATA.count_entries; i++){
+                printf("Name %s\n", ENTRIES[i].path);
+                char * pch;
+                printf ("Splitting string \"%s\" into tokens:\n",ENTRIES[i].path);
+                pch = strtok (ENTRIES[i].path,"/");
+                printf ("%s\n",pch);
+                if(filler(buffer, pch, NULL, 0)!=0)
+                {
+                    return -ENOMEM;
+                }
+            }
+        }else{
+            printf("NO ROOT\n");
+        }
+    }else{
+        printf("There are nothing%s\n",path);
+    }
+    return 0;
 }
 int filesystem_mknod(const char *path, mode_t mode, dev_t dev){
     printf("D filesystem_mknod%s\n",path);
