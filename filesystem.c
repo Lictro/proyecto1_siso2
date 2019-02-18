@@ -255,15 +255,16 @@ struct Entry_Directory create_dir_entry(char* filename,int is_dir){
     //printf("Final name |%s|\n", entry.path);
     if(is_dir){
         entry.is_dir = 'D';
+        entry.size = 0;
     }else{
         entry.is_dir = 'F';
+        entry.size = 4096;
     }
     entry.index_block = find_free_block();
     time_t current_time;
 	current_time = time(NULL);
     entry.create_date = current_time;
     entry.modi_date = current_time;
-    entry.size = 4096;
     return entry;
 }
 
@@ -294,12 +295,12 @@ void* filesystem_init(struct fuse_conn_info *conn)
 
     strcpy(CURR_DIR, "/");
 
-    init_file();
+    //init_file();
     list_dir();
     return NULL;
 }
 
-struct Entry_Directory *filesystem_get_entry(const char *path){
+int filesystem_get_entry(const char *path){
     printf("D Buscando path %s\n",path);
     int i;
     struct Entry_Directory copy;
@@ -307,10 +308,10 @@ struct Entry_Directory *filesystem_get_entry(const char *path){
     {
         if(strcmp(path,ENTRIES[i].path)){
             
-            return &ENTRIES[i];
+            return i;
         }
     }
-    return NULL;
+    return -1;
 }
 //MODIFICAR 
 void filesystem_getsize(int index_block, int *size, int *blocks){
@@ -344,15 +345,15 @@ int filesystem_getattr(const char *path, struct stat *statbuf){
         statbuf->st_blksize=BLOCK_SIZE;
         statbuf->st_blocks=1;
     }else{
-        struct Entry_Directory* entry = filesystem_get_entry(path);
+        int idx = filesystem_get_entry(path);
         
-        if(entry==NULL)
+        if(idx==-1)
         {
             return -ENOENT;
         }
-        printf("tipo %c\n", entry->is_dir);
-        if (entry->is_dir == 'D') {
-            printf("        dir entry path %s\n", entry->path);
+        printf("tipo %c %d\n", ENTRIES[idx].is_dir, idx);
+        if (ENTRIES[idx].is_dir == 'D') {
+            printf("        dir entry path %s\n", ENTRIES[idx].path);
             statbuf->st_mode=S_IFDIR|0777;
             statbuf->st_uid=0;
             statbuf->st_gid=0;
@@ -362,9 +363,9 @@ int filesystem_getattr(const char *path, struct stat *statbuf){
             statbuf->st_blksize=BLOCK_SIZE;
             statbuf->st_blocks=1;
         }else{
-            printf("        file entry path %s\n", entry->path);
+            printf("        file entry path %s\n", ENTRIES[idx].path);
             int size, blocks;
-            filesystem_getsize(entry->index_block, &size, &blocks);
+            filesystem_getsize(ENTRIES[idx].index_block, &size, &blocks);
 
             statbuf->st_mode=S_IFREG|0777;
             statbuf->st_nlink=1;
@@ -385,7 +386,7 @@ int filesystem_mkdir(const char *path, mode_t mode){
     save_bitmap();
     save_metadata();
     fldisk();
-    return -ENOENT;
+    return 0;
 }
 int filesystem_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi){
     printf("D filesystem_readdir%s\n",path);
@@ -415,7 +416,16 @@ int filesystem_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, o
 }
 int filesystem_mknod(const char *path, mode_t mode, dev_t dev){
     printf("D filesystem_mknod%s\n",path);
-    return -ENOENT;
+    if(S_ISREG(mode)) 
+    {
+        create_file((char*)path);
+        save_entrys();
+        save_bitmap();
+        save_metadata();
+        fldisk();
+        return 0;
+    }
+    return -EPERM;
 }
 int filesystem_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo){
     printf("D filesystem_write%s\n",path);
@@ -427,7 +437,15 @@ int filesystem_read(const char *path, char *buf, size_t size, off_t offset, stru
 }
 int filesystem_rename(const char *path, const char *newpath){
     printf("D filesystem_rename%s\n",path);
-    return -ENOENT;
+    int idx = filesystem_get_entry(path);
+    if(idx != 0){
+        strcpy(ENTRIES[idx].path,newpath);
+        save_entrys();
+        save_bitmap();
+        save_metadata();
+        fldisk();
+    }
+    return 0;
 }
 int filesystem_unlink(const char *path){
     printf("D filesystem_unlink%s\n",path);

@@ -55,12 +55,13 @@ struct Entry_Directory create_dir_entry(char* filename,int is_dir);
 void write_dir_entry(struct Entry_Directory entry);
 
 void* filesystem_init(struct fuse_conn_info *conn);
-struct Entry_Directory *filesystem_get_entry(const char *path);
+int filesystem_get_entry(const char *path);
 void filesystem_getsize(int index_block, int *size, int *blocks);
 int filesystem_getattr(const char *path, struct stat *statbuf);
 int filesystem_mkdir(const char *path, mode_t mode);
 int filesystem_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi);
 int filesystem_mknod(const char *path, mode_t mode, dev_t dev);
+
 int filesystem_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo);
 int filesystem_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) ;
 int filesystem_rename(const char *path, const char *newpath);
