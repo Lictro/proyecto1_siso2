@@ -435,6 +435,7 @@ int filesystem_read(const char *path, char *buf, size_t size, off_t offset, stru
     printf("D filesystem_read%s\n",path);
     return -ENOENT;
 }
+
 int filesystem_rename(const char *path, const char *newpath){
     printf("D filesystem_rename%s\n",path);
     int idx = filesystem_get_entry(path);
@@ -447,15 +448,30 @@ int filesystem_rename(const char *path, const char *newpath){
     }
     return 0;
 }
+
 int filesystem_unlink(const char *path){
     printf("D filesystem_unlink%s\n",path);
     return -ENOENT;
 }
+
 int filesystem_rmdir(const char *path){
     printf("D filesystem_rmdir%s\n",path);
     return -ENOENT;
 }
+
 int filesystem_statfs(const char *path, struct statvfs *statInfo){
     printf("D filesystem_statfs%s\n",path);
+
+    statInfo->f_bsize=BLOCK_SIZE;
+
+    int free_blocks=METADATA.free_blocks;
+
+    statInfo->f_bfree=free_blocks;
+    statInfo->f_bavail=free_blocks;
+
+    statInfo->f_namemax=235-1;
+    
+    return 0;
+
     return -ENOENT;
 }
